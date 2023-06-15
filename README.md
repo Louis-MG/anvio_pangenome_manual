@@ -12,8 +12,8 @@ The fasta files must have a proper formating before being treated. This is simpl
 
 The genome-storage database is the transformed fasta file into a SQL object. It is recquired by every function of anvio and is its foundation.
 
-* tool : [anvi-gen-genomes-storage](https://anvio.org/help/main/programs/anvi-gen-genomes-storage/)
-* object documentation : https://anvio.org/help/main/artifacts/genomes-storage-db/
+* tool : [anvi-gen-contigs-database](https://anvio.org/help/main/programs/anvi-gen-contigs-database/)
+* object documentation : https://anvio.org/help/main/artifacts/contigs-db/
 
 # step 3 : produce the annotation
 
