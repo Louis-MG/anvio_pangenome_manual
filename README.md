@@ -8,12 +8,21 @@ The fasta files must have a proper formating before being treated. This is simpl
 * tool : [anvi-script-reformat-fasta](https://anvio.org/help/7.1/programs/anvi-script-reformat-fasta/)
 * object documentation : https://anvio.org/help/7.1/artifacts/contigs-fasta/
 
+```bash
+declare -i counter; counter=0
+total_counter=$(readlink -f ncbi_dataset/data/*/*.fna | wc -l)
+for i in $(readlink -f ncbi_dataset/data/*/*fna) ; do ++counter; filename="${i###/}"; echo -e "$counter/$total_counter" ; singularity run anvio7.sif anvi-script-reformat-fasta -f $i -o ncbi_datasets/$filename --simplify-names --seq-type NT; cat ncbi_datasets/$filename >> ncbi_datasets/BigFasta.fasta ; done
+```
+
+
 # step 2 : transform the fasta file into a contig database
 
 The genome-storage database is the transformed fasta file into a SQL object. It is recquired by every function of anvio and is its foundation.
 
 * tool : [anvi-gen-contigs-database](https://anvio.org/help/main/programs/anvi-gen-contigs-database/)
 * object documentation : https://anvio.org/help/main/artifacts/contigs-db/
+
+
 
 # step 3 : produce the annotation
 
