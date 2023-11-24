@@ -9,7 +9,7 @@ The fasta files must have a proper formating before being treated. This is simpl
 * object documentation : https://anvio.org/help/7.1/artifacts/contigs-fasta/
 
 ```bash
-declare -i counter; counter=0
+declare -i counter=0
 total_counter=$(readlink -f ncbi_dataset/data/*/*.fna | wc -l)
 for i in $(readlink -f ncbi_dataset/data/*/*fna) ; do ++counter; filename="${i###/}"; echo -e "$counter/$total_counter" ; singularity run anvio7.sif anvi-script-reformat-fasta -f $i -o ncbi_datasets/$filename --simplify-names --seq-type NT; cat ncbi_datasets/$filename >> ncbi_datasets/BigFasta.fasta ; done
 ```
@@ -27,37 +27,20 @@ The genome-storage database is the transformed fasta file into a SQL object. It 
 # step 3 : produce the annotation
 
 Several types of annotations can be performed with various databases: kegg, pfam, cog etc.
+I annotated by aligning the gene-seq.fa against Uniref90.
 
-### taxonomic annotation :
+## extract the gene sequences
 
-* tool : [anvi-run-scg-taxonomy](https://anvio.org/help/main/programs/anvi-run-scg-taxonomy/)
-* object documentation : https://anvio.org/help/main/artifacts/scgs-taxonomy/
+## align
 
-### functionnal annotation :
+## extract alignements of each genomes 
 
-With a custom hmm :
-* tool : [anvi-run-hmms](https://anvio.org/help/main/programs/anvi-run-hmms/)
-* object documentation : https://anvio.org/help/main/artifacts/hmm-hits/
+```bash
+#for all the species folder, for all the gene-seq.fa files :
+for i in $(readlink -f ./*/*.fa) ; do echo $i; j=${i//*GCF/GCF}; echo $j; k=${i//gene-seq.fa/align.m8}; echo $k; if [ ! -f "$k" ] ; then grep -F "$j" ./RESULTS_4_ANNOT/annot_results.m8 > "$k"; fi; done
+```
 
-With pfam :
-get the Pfam database : 
-* tool : [anvi-setup-pfams](https://anvio.org/help/7.1/programs/anvi-setup-pfams/)
-* object documentation : https://anvio.org/help/7.1/artifacts/pfams-data/
-Use it to annotate :
-* tool : [anvi-run-pfams](https://anvio.org/help/7.1/programs/anvi-run-pfams/)
-* object documentation : https://anvio.org/help/7.1/artifacts/functions/
-
-With kegg :
-* tool : [anvi-run-kegg-kofams](https://anvio.org/help/7.1/programs/anvi-run-kegg-kofams/)
-* object documentation : https://anvio.org/help/7.1/artifacts/kegg-functions/
-
-With cogs:
-get the cogs database :
-* tool : [anvi-setup-ncbi-cogs](https://anvio.org/help/main/programs/anvi-setup-ncbi-cogs/)
-* object documentation : https://anvio.org/help/main/artifacts/cogs-data/
-Use it to annotate :
-* tool : [anvi-run-ncbi-cogs](https://anvio.org/help/main/programs/anvi-run-ncbi-cogs/)
-* object documentation : see functions
+## retain only one function per gene per genome :
 
 # step 4 : estimate completeness
 
