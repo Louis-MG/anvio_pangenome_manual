@@ -1,4 +1,4 @@
-# anvio_pangenome_manual
+\# anvio_pangenome_manual
 Describes all the steps needed to go from a fasta to an annotated pangenome with anvio.
 
 # step 1 : prepare the fasta.
@@ -78,7 +78,9 @@ Once all contigs.db are annotated, we can produce an external-genomes.txt file f
 
 ```bash
 mkdir /path/to/genomesDB
-
+mkdir /path/to/genomesDB/species*
+for i in * ; do if [ -d $i ]; then echo $i; echo /mnt/ssd/LM/results/genomesDB/"$i"/external_genomes.txt; echo "name" > ~/names.txt ; echo "contigs_db_path" > ~/paths.txt; for j in $(readlink -fe "$i"/*CONTIGS.db); do echo "$j" >> ~/paths.txt; name=$(basename "$j"); echo "$name" >> ~/names.txt; paste ~/names.txt ~/paths.txt > /mnt/ssd/LM/results/genomesDB/"$i"/external_genomes.txt ; done ; fi ; done
+for i in * ; do if [ -d $i ]; then singularity run --bind '/mnt/ssd/LM/,/mnt/projects_tn01/metapangenome/' /mnt/projects_tn01/metapangenome/tools/anvio7.sif anvi-gen-genomes-storage -o /mnt/ssd/LM/results/genomesDB/"$i"-GENOMES.db -e /mnt/ssd/LM/results/genomesDB/"$i"/external_genomes.txt ; fi ; done
 ```
 
 # step 5 : produce the pangenome
