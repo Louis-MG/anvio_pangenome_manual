@@ -79,9 +79,7 @@ Once all contigs.db are annotated, we can produce an external-genomes.txt file f
 ```bash
 mkdir /path/to/genomesDB
 mkdir /path/to/genomesDB/species*
-for i in * ; do if [ -d $i ]; then echo $i; echo /mnt/ssd/LM/results/genomesDB/"$i"/external_genomes.txt; echo "name" > ~/names.txt ; echo "contigs_db_path" > ~/paths.txt; for j in $(readlink -fe "$i"/*CONTIGS.db); do echo "$j" >> ~/paths.txt; name=$(basename "$j"); echo "$name" >> ~/names.txt; paste ~/names.txt ~/paths.txt > /mnt/ssd/LM/results/genomesDB/"$i"/external_genomes.txt ; done ; fi ; done
-#clean the genome names for anvio :
-sed -i 's/-CONTIGS\.db//g;s/\./_/g' ../genomesDB/*/external_genomes.txt
+for i in * ; do if [ -d $i ]; then echo $i; echo /mnt/ssd/LM/results/genomesDB/"$i"/external_genomes.txt; echo "name" > ~/names.txt ; echo "contigs_db_path" > ~/paths.txt; for j in $(readlink -fe "$i"/*CONTIGS.db); do echo "$j" >> ~/paths.txt; name=$(basename "$j"); echo "$name" >> ~/names.txt; sed -i 's/-CONTIGS\.db//g;s/[-\.]/_/g' ~/names.txt ; paste ~/names.txt ~/paths.txt > /mnt/ssd/LM/results/genomesDB/"$i"/external_genomes.txt ; done ; fi ; done
 # next :
 for i in * ; do if [ -d $i ]; then singularity run --bind '/mnt/ssd/LM/,/mnt/projects_tn01/metapangenome/' /mnt/projects_tn01/metapangenome/tools/anvio7.sif anvi-gen-genomes-storage -o /mnt/ssd/LM/results/genomesDB/"$i"-GENOMES.db -e /mnt/ssd/LM/results/genomesDB/"$i"/external_genomes.txt ; fi ; done
 ```
@@ -93,8 +91,21 @@ The pangenome is computed with the annotations :
 * tool : [anvi-pan-genome](https://anvio.org/help/main/programs/anvi-pan-genome/)
 * object documentation : https://anvio.org/help/main/artifacts/pan-db/
 
+```bash
+#make the pangenomes through a loop :
+for i in $(readlink -f ./*/*-GENOMES.db) ; do echo $i; j=$(basename "$i"); singularity run --bind '/mnt/ssd/LM/,/mnt/projects_tn03/metapangenome/' /mnt/projects_tn03/metapangenome/tools/anvio7.sif anvi-pan-genome --genomes-storage "$i" --project-name "${j//-GENOMES\.db/_pangenome}" ; done
+```
+
 Visualise the pangenome :
 
 * tool : [anvi-display-pan](https://anvio.org/help/main/programs/anvi-display-pan/)
 * object documentation : https://anvio.org/help/main/artifacts/interactive/
 
+# step 6 : produce the metapangenome :
+
+With all the pangenomes, using again the genomes.db, we produce the metapangenome :
+
+Compute the metapangenome :
+
+* tool : [anvi-meta-pan-genome](https://anvio.org/help/main/programs/anvi-meta-pan-genome/)
+* object documentation : https://anvio.org/help/main/artifacts/metapangenome/
