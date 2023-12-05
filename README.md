@@ -84,7 +84,7 @@ for i in * ; do if [ -d $i ]; then echo $i; echo /mnt/ssd/LM/results/genomesDB/"
 for i in * ; do if [ -d $i ]; then singularity run --bind '/mnt/ssd/LM/,/mnt/projects_tn01/metapangenome/' /mnt/projects_tn01/metapangenome/tools/anvio7.sif anvi-gen-genomes-storage -o /mnt/ssd/LM/results/genomesDB/"$i"-GENOMES.db -e /mnt/ssd/LM/results/genomesDB/"$i"/external_genomes.txt ; fi ; done
 ```
 
-# step 5 : produce the pangenome
+# step 5 : produce the species pangenomes
 
 The pangenome is computed with the annotations :
 
@@ -103,9 +103,15 @@ Visualise the pangenome :
 
 # step 6 : produce the metapangenome :
 
-With all the pangenomes, using again the genomes.db, we produce the metapangenome :
+First we make an external_genomes.tsv file :
 
-Compute the metapangenome :
+```bash
+cd /path/to/contigsDB/
+echo "name" > ~/names.txt ; echo "contigs_db_path" > ~/paths.txt; for i in * ; do if [ -d $i ]; then echo $i; for j in $(readlink -fe "$i"/*CONTIGS.db); do echo "$j" >> ~/paths.txt; name=$(basename "$j"); echo "$i"_"$name" >> ~/names.txt; sed -i 's/-CONTIGS\.db//g;s/[-\.]/_/g' ~/names.txt ; done ; fi ; done ; paste ~/names.txt ~/paths.txt > /mnt/ssd/LM/results/genomesDB/ALL_external_genomes.txt
+```
 
-* tool : [anvi-meta-pan-genome](https://anvio.org/help/main/programs/anvi-meta-pan-genome/)
-* object documentation : https://anvio.org/help/main/artifacts/metapangenome/
+Then we can build the genomes storage : 
+
+```bash
+singularity run --bind '/mnt/ssd/LM/,/mnt/projects_tn01/metapangenome/' /mnt/projects_tn01/metapangenome/tools/anvio7.sif anvi-gen-genomes-storage -o /mnt/ssd/LM/results/genomesDB/ALL-GENOMES.db -e /mnt/ssd/LM/results/genomesDB/ALL_external_genomes.txt
+```
