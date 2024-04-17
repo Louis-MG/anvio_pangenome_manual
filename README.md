@@ -9,9 +9,7 @@ The fasta files must have a proper formating before being treated. This is simpl
 * object documentation : https://anvio.org/help/7.1/artifacts/contigs-fasta/
 
 ```bash
-declare -i counter=0
-total_counter=$(readlink -f ncbi_dataset/data/*/*.fna | wc -l)
-for i in $(readlink -f ncbi_dataset/data/*/*fna) ; do ++counter; filename="${i###/}"; echo -e "$counter/$total_counter" ; singularity run anvio7.sif anvi-script-reformat-fasta -f $i -o ncbi_datasets/$filename --simplify-names --seq-type NT; cat ncbi_datasets/$filename >> ncbi_datasets/BigFasta.fasta ; done
+for species in $(readlink -f /mnt/projects_tn03/metapangenome/DATA/species/*); do folder=$(basename "$species"); for genome in $(readlink -f "$species"/*.fna); do contigs=$(basename "$genome"); contigs="${contigs//\.fna/}"; anvi-script-reformat-fasta "$genome" -o "$folder"/"$contigs"_reformated.fasta --simplify-names ; done; done
 ```
 
 
@@ -23,6 +21,7 @@ The genome-storage database is the transformed fasta file into a SQL object. It 
 * object documentation : https://anvio.org/help/main/artifacts/contigs-db/
 
 ```bash
+for species in $(readlink -f /mnt/projects_tn03/metapangenome/DATA/results/reformated/*); do folder=$(basename "$species"); for formated_genome in $(readlink -f "$species"/*reformated.fasta); do contigs=$(basename "$formated_genome"); contigs="${contigs//reformated.fasta/contigs-db.db}"; anvi-gen-contigs-database -f "$formated_genome" -o /mnt/ssd/LM/results/contigsDB/"$folder"/"$contigs" --project-name "$folder"_contigs -T 80 --force-overwrite --tmp-dir /mnt/ssd/LM/temp/ ; done ; done
 ```
 
 # step 3 : produce the annotation
@@ -33,13 +32,51 @@ I annotated by aligning the gene-seq.fa against Uniref90.
 ## extract the gene sequences
 
 ```bash
-gene-seq
+for species in $(readlink -f /mnt/ssd/LM/results/contigsDB/*); do folder=$(basename "$species"); for contig_db in $(readlink -f "$species"/*.db); do contigs=$(basename "$contig_db"); output_name="${contigs//contigs-db.db/genes-aa.faa}"; anvi-get-sequences-for-gene-calls -c "$contig_db" --get-aa-sequences -o /mnt/ssd/LM/results/proteins/"$folder"/"$output_name" ; done ; done
 ```
+
+## Special treatment of fungi
+
+Malssezia are fungi and thus would be poorly annotated using prodigal. Download the '.gbff' file of their genomes on RefSeq and get the right files from it with :
+```bash
+anvi-script-process-genbank -i malassezia_restricta_genomic.gbff \
+                            --output-gene-calls malassezia_restricta_gene_calls.tsv \
+                            --output-functions malassezia_restricta_functions.tsv \
+                            --output-fasta malassezia_restricta_refs.fa \
+                            --annotation-source augustus
+
+
+```
+For _M. restricta_, report should be :
+
+```
+Num GenBank entries processed ................: 10
+Num gene records found .......................: 4,406
+Num genes reported ...........................: 3,210
+Num genes with AA sequences ..................: 3,210
+Num genes with functions .....................: 3,210
+Locus tags included in functions output? .....: No
+Num partial genes ............................: 0
+Num genes excluded ...........................: 1,196
+```
+The 1,196 genes are exlueded for 'spanning multiple contigs'. For _M.globosa_ :
+
+```
+Num GenBank entries processed ................: 62
+Num gene records found .......................: 4,278
+Num genes reported ...........................: 3,107
+Num genes with AA sequences ..................: 3,098
+Num genes with functions .....................: 3,107
+Locus tags included in functions output? .....: No
+Num partial genes ............................: 9
+Num genes excluded ...........................: 1,171
+```
+Again, 1171 genes were exlueded for the reason above. 9 partial genes were also exclueded.
 
 ## align
 
 ```bash
-mmseqs creatdb ./*gene-seq.fasta ANNOTDB --db-type 3
+mmseqs creatdb ./*genes-aa.faa ANNOTDB --db-type 1
 mmseqs createdb uniref90
 mmseqs search ANNOTDB uniref90DB RESULTSDB ~/tmp/ --search-type 3 --threads 120 blablabla 
 ```
@@ -47,7 +84,7 @@ mmseqs search ANNOTDB uniref90DB RESULTSDB ~/tmp/ --search-type 3 --threads 120 
 ## extract alignements of each genomes 
 
 ```bash
-mmseqs convertalis 
+mmseqs convertalis ANNOTDB uniref90DB RESULTSDB RESULTSDB.m8
 ```
 
 ```bash
