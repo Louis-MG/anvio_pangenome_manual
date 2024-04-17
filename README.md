@@ -37,7 +37,7 @@ for species in $(readlink -f /mnt/ssd/LM/results/contigsDB/*); do folder=$(basen
 
 ## Special treatment of fungi
 
-Malssezia are fungi and thus would be poorly annotated using prodigal. Download the '.gbff' file of their genomes on RefSeq and get the right files from it with :
+Malassezia are fungi and thus would be poorly annotated using prodigal. Download the '.gbff' file of their genomes on RefSeq and get the right files from it with :
 ```bash
 anvi-script-process-genbank -i malassezia_restricta_genomic.gbff \
                             --output-gene-calls malassezia_restricta_gene_calls.tsv \
@@ -73,22 +73,46 @@ Num genes excluded ...........................: 1,171
 ```
 Again, 1171 genes were exlueded for the reason above. 9 partial genes were also exclueded.
 
-## align
+Then Build the contigs databases using the files produced by the command above :
 
 ```bash
-mmseqs creatdb ./*genes-aa.faa ANNOTDB --db-type 1
+anvi-gen-contigs-database -f ../annot_malassezia/malassezia_globosa_refs.fa \
+                          -o /mnt/ssd/LM/results/contigsDB/MalasseziaGlobosa/GCF_000181695.2_ASM18169v2_genomic_contigs-db.db \
+                          -n MalasseziaGlobosa \
+                          --external-gene-calls ../annot_malassezia/malassezia_globosa_gene_calls.tsv \
+                          --split-length -1
+
+anvi-gen-contigs-database -f ../annot_malassezia/malassezia_restricta_refs.fa
+                           -o /mnt/ssd/LM/results/contigsDB/MalasseziaRestricta/GCF_003290485.1_ASM329048v1_genomic_contigs-db.db
+                           -n MalasseziaRestricta
+                           --external-gene-calls ../annot_malassezia/malassezia_restricta_gene_calls.tsv
+                           --split-length -1
+```
+
+And import the functions to complete the annotation:
+
+```bash
+anvi-import-functions -c /mnt/ssd/LM/results/contigsDB/MalasseziaRestricta/GCF_003290485.1_ASM329048v1_genomic_contigs-db.db -i ../annot_malassezia/malassezia_restricta_functions.tsv
+anvi-import-functions -c /mnt/ssd/LM/results/contigsDB/MalasseziaGlobosa/GCF_003290485.1_ASM329048v1_genomic_contigs-db.db -i ../annot_malassezia/malassezia_globosa_functions.tsv
+```
+
+
+## Align the protein sequences on UNIREF90 to obtain hteir functions.
+
+```bash
+mmseqs createdb /mnt/ssd/LM/results/proteins/*/*.faa /mnt/scratch/LM/ANNOT_QUERY_DB/query_DB --dbtype 1
 mmseqs createdb uniref90
-mmseqs search ANNOTDB uniref90DB RESULTSDB ~/tmp/ --search-type 3 --threads 120 blablabla 
+mmseqs search /mnt/scratch/LM/ANNOT_QUERY_DB/query_DB /mnt/scratch/LM/KMER/UNIREF90/uniref90 /mnt/scratch/LM/RESULTS_ANNOT_DB/results_DB /mnt/ssd/LM/tmp/ --search-type 1 --start-sens 2 --sens-steps 3 -s 7 --threads 120 -a
 ```
 
 ## extract alignements of each genomes 
 
 ```bash
-mmseqs convertalis ANNOTDB uniref90DB RESULTSDB RESULTSDB.m8
+mmseqs convertalis /mnt/scratch/LM/ANNOT_QUERY_DB/query_DB /mnt/scratch/LM/KMER/UNIREF90/uniref90 /mnt/scratch/LM/RESULTS_ANNOT_DB/results_DB /mnt/scratch/LM/RESULTS_ANNOT_DB/RESULTS_DB.m8 --format
 ```
 
 ```bash
-#for all the species folder, for all the gene-seq.fa files :
+#for all the species folder, for all the genes-aa.faa files :
 for i in $(readlink -f ./*/*.fa) ; do echo $i; j=${i//*GCF/GCF}; echo $j; k=${i//gene-seq.fa/align.m8}; echo $k; if [ ! -f "$k" ] ; then grep -F "$j" ./RESULTS_4_ANNOT/annot_results.m8 > "$k"; fi; done
 ```
 
@@ -150,12 +174,12 @@ echo "name" > ~/names.txt ; echo "contigs_db_path" > ~/paths.txt; for i in * ; d
 Then we can build the genomes storage : 
 
 ```bash
-singularity run --bind '/mnt/ssd/LM/,/mnt/projects_tn01/metapangenome/' /mnt/projects_tn01/metapangenome/tools/anvio7.sif anvi-gen-genomes-storage -o /mnt/ssd/LM/results/genomesDB/ALL-GENOMES.db -e /mnt/ssd/LM/results/genomesDB/ALL_external_genomes.txt
+anvi-gen-genomes-storage -o /mnt/ssd/LM/results/genomesDB/ALL-GENOMES.db -e /mnt/ssd/LM/results/genomesDB/ALL_external_genomes.txt
 ```
 
 ANd use it to build the metapangenome :
 
 ```bash
-singularity run --bind '/mnt/ssd/LM/,/mnt/projects_tn03/metapangenome/' /mnt/projects_tn03/metapangenome/tools/anvio7.sif anvi-pan-genome --genomes-storage "$i" --project-name "${j//-GENOMES\.db/_pangenome}"
+anvi-pan-genome --genomes-storage "$i" --project-name "${j//-GENOMES\.db/_pangenome}"
 ```
 
