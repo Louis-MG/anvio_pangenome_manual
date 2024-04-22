@@ -5,7 +5,7 @@ Describes all the steps needed to go from a fasta to an annotated pangenome with
 
 The fasta files must have a proper formating before being treated. This is simply about removing special characters from the headers. Once formated, the files can be used as `-fasta`.
 
-* tool : [anvi-script-reformat-fasta](https://anvio.org/help/7.1/programs/anvi-script-reformat-fasta/)
+* tool : [anvi-script-reformat-fasta](https://anvio.org/help/8/programs/anvi-script-reformat-fasta/)
 * object documentation : https://anvio.org/help/7.1/artifacts/contigs-fasta/
 
 ```bash
@@ -17,7 +17,7 @@ for species in $(readlink -f /mnt/projects_tn03/metapangenome/DATA/species/*); d
 
 The genome-storage database is the transformed fasta file into a SQL object. It is recquired by every function of anvio and is its foundation.
 
-* tool : [anvi-gen-contigs-database](https://anvio.org/help/main/programs/anvi-gen-contigs-database/)
+* tool : [anvi-gen-contigs-database](https://anvio.org/help/8/programs/anvi-gen-contigs-database/)
 * object documentation : https://anvio.org/help/main/artifacts/contigs-db/
 
 ```bash
@@ -112,8 +112,9 @@ mmseqs convertalis /mnt/scratch/LM/ANNOT_QUERY_DB/query_DB /mnt/scratch/LM/KMER/
 ```
 
 ```bash
-#for all the species folder, for all the genes-aa.faa files :
-for i in $(readlink -f ./*/*.fa) ; do echo $i; j=${i//*GCF/GCF}; echo $j; k=${i//gene-seq.fa/align.m8}; echo $k; if [ ! -f "$k" ] ; then grep -F "$j" ./RESULTS_4_ANNOT/annot_results.m8 > "$k"; fi; done
+#script spearates alignments per qset ID (which are the different files used to build the query_DB)
+#script then moves the files to species folders in output path
+bash split_annot_species.sh -m8 /mnt/scratch/LM/RESULTS_ANNOT_DB/results.m8 -s /mnt/projects_tn03/metapangenome/DATA/species -o /mnt/projects_tn03/metapangenome/DATA/results/annot/
 ```
 
 ## retain only one function per gene per genome :
@@ -134,7 +135,7 @@ for contigs in $(readlink -f /mnt/ssd/LM/results/contigsDB/*/*); do echo $contig
 
 Once all contigs.db are annotated, we can produce an external-genomes.txt file for each species, which will contain all the paths to contigs.
 
-* tool : [anvi-script-gen-gen-genomes-file](https://anvio.org/help/main/programs/anvi-script-gen-genomes-file/)
+* tool : [anvi-script-gen-gen-genomes-file](https://anvio.org/help/8/programs/anvi-script-gen-genomes-file/)
 * object documentation : https://anvio.org/help/main/artifacts/external-genomes/
 
 ```bash
@@ -149,7 +150,7 @@ for i in * ; do if [ -d $i ]; then singularity run --bind '/mnt/ssd/LM/,/mnt/pro
 
 The pangenome is computed with the annotations :
 
-* tool : [anvi-pan-genome](https://anvio.org/help/main/programs/anvi-pan-genome/)
+* tool : [anvi-pan-genome](https://anvio.org/help/8/programs/anvi-pan-genome/)
 * object documentation : https://anvio.org/help/main/artifacts/pan-db/
 
 ```bash
@@ -159,7 +160,7 @@ for i in $(readlink -f ./*/*-GENOMES.db) ; do echo $i; j=$(basename "$i"); singu
 
 Visualise the pangenome :
 
-* tool : [anvi-display-pan](https://anvio.org/help/main/programs/anvi-display-pan/)
+* tool : [anvi-display-pan](https://anvio.org/help/8/programs/anvi-display-pan/)
 * object documentation : https://anvio.org/help/main/artifacts/interactive/
 
 # step 6 : produce the metapangenome :
