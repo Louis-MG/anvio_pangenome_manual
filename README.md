@@ -116,6 +116,15 @@ mmseqs convertalis /mnt/scratch/LM/ANNOT_QUERY_DB/query_DB /mnt/scratch/LM/KMER/
 #script then moves the files to species folders in output path
 bash split_annot_species.sh -m8 /mnt/scratch/LM/RESULTS_ANNOT_DB/results.m8 -s /mnt/projects_tn03/metapangenome/DATA/species -o /mnt/projects_tn03/metapangenome/DATA/results/annot/
 ```
+Files that were not aligned because dark magic can be found again with :
+```bash
+for species in $(readlink -f results/proteins/*) ; do folder=$(basename "$species"); for i in $(readlink -f "$species"/*.faa); do file=$(basename "$i"); annot=${file//_genomic_genes-aa.faa/.m8}; if [ ! -e results/annot/"$folder"/"$annot" ]; then echo "$i" >> to_be_query_again.txt; fi ; done ; done
+```
+In `to_be_query_again.txt` are the absolute paths to the protein files that should be annotated. Remove the Malassezia lines and then build again the DB with :
+```bash
+mmseqs createdb $(sed "s/\\n/ /g" /mnt/projects_tn03/metapangenome/DATA/to_be_query_again.txt) QUERY_AGAIN/query
+
+```	
 
 ## retain only one function per gene per genome :
 
@@ -128,12 +137,13 @@ parallel bash annot.sh -i {} -f /path/to/uniref_to_interpro_func.tsv ::: $(readl
 ## add the anontation to the contigsDB :
 
 ```bash
-for contigs in $(readlink -f /mnt/ssd/LM/results/contigsDB/*/*); do echo $contigs; i=${contigs//\/mnt\/ssd\/LM\/results\/contigsDB\//\/mnt\/projects_tn01\/metapangenome\/DATA\/results\/gene-fasta\/}; echo "$i"; functions=${i//-CONTIGS.db/_functions.tsv}; echo "$functions"; singularity run --bind '/mnt/ssd/LM/,/mnt/projects_tn01/metapangenome/' /mnt/projects_tn01/metapangenome/tools/anvio7.sif anvi-import-functions -i "$functions" -c "$contigs" --drop-previous-annotations ; done
+for contigs in $(readlink -f /mnt/ssd/LM/results/contigsDB/*/*); do echo $contigs; i=${contigs//\/mnt\/ssd\/LM\/results\/contigsDB\//\/mnt\/projects_tn03\/metapangenome\/DATA\/results\/gene-fasta\/}; echo "$i"; functions=${i//-CONTIGS.db/_functions.tsv}; echo "$functions"; anvi-import-functions -i "$functions" -c "$contigs" --drop-previous-annotations ; done
 ```
 
 # step 4 : produce the genomes storages 
 
-Once all contigs.db are annotated, we can produce an external-genomes.txt file for each species, which will contain all the paths to contigs.
+Once all contigs.db are annotated, we can produce an external-genomes.txt file for each species, which will contain all the paths to contigs. Then, build the genome storages.
+NOTE: eukaryotes and prokaryotes must be separated, otherwise anvioi will remove 'augustus gene calls'
 
 * tool : [anvi-script-gen-gen-genomes-file](https://anvio.org/help/8/programs/anvi-script-gen-genomes-file/)
 * object documentation : https://anvio.org/help/main/artifacts/external-genomes/
@@ -143,7 +153,7 @@ mkdir /path/to/genomesDB
 mkdir /path/to/genomesDB/species*
 for i in * ; do if [ -d $i ]; then echo $i; echo /mnt/ssd/LM/results/genomesDB/"$i"/external_genomes.txt; echo "name" > ~/names.txt ; echo "contigs_db_path" > ~/paths.txt; for j in $(readlink -fe "$i"/*CONTIGS.db); do echo "$j" >> ~/paths.txt; name=$(basename "$j"); echo "$name" >> ~/names.txt; sed -i 's/-CONTIGS\.db//g;s/[-\.]/_/g' ~/names.txt ; paste ~/names.txt ~/paths.txt > /mnt/ssd/LM/results/genomesDB/"$i"/external_genomes.txt ; done ; fi ; done
 # next :
-for i in * ; do if [ -d $i ]; then singularity run --bind '/mnt/ssd/LM/,/mnt/projects_tn01/metapangenome/' /mnt/projects_tn01/metapangenome/tools/anvio7.sif anvi-gen-genomes-storage -o /mnt/ssd/LM/results/genomesDB/"$i"-GENOMES.db -e /mnt/ssd/LM/results/genomesDB/"$i"/external_genomes.txt ; fi ; done
+for i in * ; do if [ -d $i ]; then anvi-gen-genomes-storage -o /mnt/ssd/LM/results/genomesDB/"$i"-GENOMES.db -e /mnt/ssd/LM/results/genomesDB/"$i"/external_genomes.txt ; fi ; done
 ```
 
 # step 5 : produce the species pangenomes
@@ -155,7 +165,7 @@ The pangenome is computed with the annotations :
 
 ```bash
 #make the pangenomes through a loop :
-for i in $(readlink -f ./*/*-GENOMES.db) ; do echo $i; j=$(basename "$i"); singularity run --bind '/mnt/ssd/LM/,/mnt/projects_tn03/metapangenome/' /mnt/projects_tn03/metapangenome/tools/anvio7.sif anvi-pan-genome --genomes-storage "$i" --project-name "${j//-GENOMES\.db/_pangenome}" ; done
+for i in $(readlink -f ./*/*-GENOMES.db) ; do echo $i; j=$(basename "$i"); anvi-pan-genome --genomes-storage "$i" --project-name "${j//-GENOMES\.db/_pangenome}" ; done
 ```
 
 Visualise the pangenome :
@@ -178,9 +188,109 @@ Then we can build the genomes storage :
 anvi-gen-genomes-storage -o /mnt/ssd/LM/results/genomesDB/ALL-GENOMES.db -e /mnt/ssd/LM/results/genomesDB/ALL_external_genomes.txt
 ```
 
-ANd use it to build the metapangenome :
+And use it to build the metapangenome :
 
 ```bash
 anvi-pan-genome --genomes-storage "$i" --project-name "${j//-GENOMES\.db/_pangenome}"
 ```
+
+##### For the metagenomics reads recruitment:
+
+# Fungi:
+
+# step 1 : align the reads to the genomes
+
+```bash
+#build the bowtiedb, add the annotation to contigs
+cat Malassezia_*_genomes.fna >> fungi.fna
+#import the bgff: it will output a fungi_refs.fa to use instead of the fungi.fna, a fungi_gunctions.txt to import. Otherwise anvio doesnt work.
+bowtie2-build fungi_refs.fa
+anvi-ben-contigs-database -f fungi_refs.fa -o fungi_contigs-db.db --external-gene-calls fungi_refs_gene_calls.tsv
+anvi-import-functions -c fungi_contigs-db.db -i fungi_functions.txt
+
+# align the reads for different skin env
+readlink -f /mnt/projects_tno03/metapangenome/DATA/Biogeography/dry/*_clean_R1* > bowtie/dry/samples.txt
+sed -i 's/_R1.fastq.gz//g' bowtie/dry/samples.txt
+while read path ; do  sample=$(basename "$path") ;  if [ "$sample" == "sample" ]; then continue; fi;     bowtie2 --threads 60             -x fungi_bowtie_DB             -1 "$path"_R1.fastq.gz             -2 "$path"_R2.fastq.gz             --no-unal             -S bowtie/dry/"$sample".sam;      samtools view -F 4 -bS bowtie/dry/"$sample".sam > bowtie/dry/"$sample"-RAW.bam;      samtools sort bowtie/dry/"$sample"-RAW.bam -o bowtie/dry/"$sample".bam;     samtools index bowtie/dry/"$sample".bam;      rm bowtie/dry/"$sample".sam bowtie/dry/"$sample"-RAW.bam; done < bowtie/dry/samples.txt
+
+readlink -f /mnt/projects_tno03/metapangenome/DATA/Biogeography/moist/*_clean_R1* > bowtie/dry/samples.txt
+sed -i 's/_R1.fastq.gz//g' bowtie/moist/samples.txt
+while read path ; do  sample=$(basename "$path") ;  if [ "$sample" == "sample" ]; then continue; fi;     bowtie2 --threads 60             -x fungi_bowtie_DB             -1 "$path"_R1.fastq.gz             -2 "$path"_R2.fastq.gz             --no-unal             -S bowtie/moist/"$sample".sam;      samtools view -F 4 -bS bowtie/moist/"$sample".sam > bowtie/moist/"$sample"-RAW.bam;      samtools sort bowtie/moist/"$sample"-RAW.bam -o bowtie/moist/"$sample".bam;     samtools index bowtie/moist/"$sample".bam;      rm bowtie/moist/"$sample".sam bowtie/moist/"$sample"-RAW.bam; done < bowtie/moist/samples.txt
+
+readlink -f /mnt/projects_tno03/metapangenome/DATA/Biogeography/dry/*_clean_R1* > bowtie/dry/samples.txt
+sed -i 's/_R1.fastq.gz//g' bowtie/dry/samples.txt
+while read path ; do  sample=$(basename "$path") ;  if [ "$sample" == "sample" ]; then continue; fi;     bowtie2 --threads 60             -x fungi_bowtie_DB             -1 "$path"_R1.fastq.gz             -2 "$path"_R2.fastq.gz             --no-unal             -S bowtie/dry/"$sample".sam;      samtools view -F 4 -bS bowtie/dry/"$sample".sam > bowtie/dry/"$sample"-RAW.bam;      samtools sort bowtie/dry/"$sample"-RAW.bam -o bowtie/dry/"$sample".bam;     samtools index bowtie/dry/"$sample".bam;      rm bowtie/dry/"$sample".sam bowtie/dry/"$sample"-RAW.bam; done < bowtie/dry/samples.txt
+```
+
+# make the profile db foreach env :
+
+```bash
+while read path ; do  sample=$(basename "$path") ;  if [ "$sample" == "sample" ]; then continue; fi;     anvi-profile -c fungi_contigs-db.db                  -i bowtie/sebaceous/$sample.bam                  -M 1000                  --skip-SNV-profiling                  --num-threads 30                  -o bowtie/sebaceous/$sample ; done < bowtie/sebaceous/samples.txt
+
+while read path ; do  sample=$(basename "$path") ;  if [ "$sample" == "sample" ]; then continue; fi;     anvi-profile -c fungi_contigs-db.db                  -i bowtie/dry/$sample.bam                  -M 1000                  --skip-SNV-profiling                  --num-threads 30                  -o bowtie/dry/$sample ; done < bowtie/dry/samples.txt
+
+while read path ; do  sample=$(basename "$path") ;  if [ "$sample" == "sample" ]; then continue; fi;     anvi-profile -c fungi_contigs-db.db                  -i bowtie/moist/$sample.bam                  -M 1000                  --skip-SNV-profiling                  --num-threads 30                  -o bowtie/moist/$sample ; done < bowtie/moist/samples.txt
+```
+
+# merge  the db for each skin type :
+
+```bash
+for env in dry moist sebaceous ; do anvi-merge bowtie/"$env"/*/PROFILE.db            -o bowtie/"$env"/"$env"-MERGED            -c fungi_contigs-db.db ; done
+```
+
+# make the genome collection :
+
+```bash
+for split_name in `sqlite3 fungi_contigs-db.db 'select split from splits_basic_info;'`; do GENOME=`echo $split_name | awk 'BEGIN{FS="_split_"}{print $1}'`; echo -e "$split_name\t$GENOME" ; done > fungi-GENOME-COLLECTION.txt
+# find which contig_split is in which genome, thus here for the fungi which malassezia
+```
+
+# add the genome colleciton to eah profile.db, per skin type :
+
+```bash
+for env in dry moist sebaceous ; do anvi-import-collection fungi-GENOME-COLLECTION.txt -c fungi_contigs-db.db -C Genomes -p bowtie/"$env"/"$env"-MERGED/PROFILE.db ; done
+```
+
+# compute the coverage summary of the contigs for each skin type :
+
+```bash
+for env in dry moist sebaceous ; do anvi-summarize -c fungi_contigs-db.db -C Genomes -p bowtie/"$env"/"$env"-MERGED/PROFILE.db --init-gene-coverages -o fungi-"$env"-SUMMARY; done
+```
+
+# generate internal genomes tables :
+
+```bash
+# marche paaaaaaaaaaaaaaaaas faut que je change pour avoir un readlink -f vers le chemin de la PROFILE.db issue du merge des profile.db d'un env
+bash ../../../../gitlab/anvi-script-gen-internal-genomes-table.sh -i fungi-dry-SUMMARY -c fungi_contigs-db.db -P bowtie/dry/dry-MERGED/PROFILE.db -o ./ -p dry
+bash ../../../../gitlab/anvi-script-gen-internal-genomes-table.sh -i fungi-moist-SUMMARY -c fungi_contigs-db.db -P bowtie/moist/moist-MERGED/PROFILE.db -o ./ -p moist
+bash ../../../../gitlab/anvi-script-gen-internal-genomes-table.sh -i fungi-sebaceous-SUMMARY -c fungi_contigs-db.db -P bowtie/sebaceous/sebaceous-MERGED/PROFILE.db -o ./ -p sebaceous
+```
+
+# generate GENOMES db for each env :
+
+```bash
+anvi-gen-genomes-storage -i dry-internal-genomes-table.txt -o fungi-dry-GENOMES.db --gene-caller augustus
+anvi-gen-genomes-storage -i moist-internal-genomes-table.txt -o fungi-moist-GENOMES.db --gene-caller augustus
+anvi-gen-genomes-storage -i sebaceous-internal-genomes-table.txt -o fungi-sebaceous-GENOMES.db --gene-caller augustus
+```
+
+# generate pangenome for each env
+
+```bash
+for site in dry sebaceous moist;
+do
+	anvi-pan-genome -o fungi-"$site"-PAN -g fungi-"$site"-GENOMES.db -n fungi-"$site" -T 30
+done
+```
+
+# generate the meta-pan-genome for each env:
+
+```bash
+for site in dry sebaceous moist;
+do
+        anvi-meta-pan-genome -i "$site"-internal-genomes-table.txt  -g fungi-"$site"-GENOMES.db -p fungi-"$site"-PAN/*PAN.db
+done
+```
+
+
 
