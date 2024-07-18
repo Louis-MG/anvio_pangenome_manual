@@ -292,5 +292,23 @@ do
 done
 ```
 
+#TODO: pour l'instant les meta-pan-genoomes ne sont pas construits car les gene calls ne sont pas visibles ? car augustus et pas prodigal.
+#TODO: voir si les anvio reglkes le souci, profiles db pas bien faites ? 
 
+
+####################
+#
+# enrich. fonction. 
+#
+####################
+
+# dry vs toenail
+
+```bash
+for i in AcinetobacterBaumannii SalmonellaEnterica CutibacteriumAcnes CutibacteriumNamnetense ; do cat /mnt/ssd/LM/results/genomesDB/"$i"/external_genomes.txt >> /mnt/ssd/LM/results/functional_enrichment/external_genomes.txt ; done
+for i in AcinetobacterBaumannii SalmonellaEnterica CutibacteriumAcnes CutibacteriumNamnetense ; do awk 'BEGIN {OFS="\t"} {print $1, "dry"}' /mnt/ssd/LM/results/genomesDB/"$i"/external_genomes.txt >> /mnt/ssd/LM/results/functional_enrichment/groups.txt ; done
+for i in CorynebacteriumAurimucosum CorynebacteriumIhumii CorynebacteriumPseudogenitalium StaphylococcusEpidermidis BrevibacteriumPaucivorans CorynebacteriumJeikeium CorynebacteriumKefirresidentii Corynebacteriumsphmsc04h06 StaphylococcusPettenkoferi Staphylococcusspez-p03 StaphylococcusWarneri ; do cat /mnt/ssd/LM/results/genomesDB/"$i"/external_genomes.txt >> /mnt/ssd/LM/results/functional_enrichment//external_genomes.txt ; done
+for i in CorynebacteriumAurimucosum CorynebacteriumIhumii CorynebacteriumPseudogenitalium StaphylococcusEpidermidis BrevibacteriumPaucivorans CorynebacteriumJeikeium CorynebacteriumKefirresidentii Corynebacteriumsphmsc04h06 StaphylococcusPettenkoferi Staphylococcusspez-p03 StaphylococcusWarneri ; do awk 'BEGIN {OFS="\t"} {print $1, "toenail"}' /mnt/ssd/LM/results/genomesDB/"$i"/external_genomes.txt >> /mnt/ssd/LM/results/functional_enrichment/groups.txt ; done
+anvi-script-gen-function-matrix-across-genomes -e external_genomes.txt -G groups.txt --annotation-source Uniref90  --output-file-prefix dry_vs_toenail
+```
 
