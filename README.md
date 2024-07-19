@@ -288,13 +288,9 @@ done
 ```bash
 for site in dry sebaceous moist;
 do
-        anvi-meta-pan-genome -i "$site"-internal-genomes-table.txt  -g fungi-"$site"-GENOMES.db -p fungi-"$site"-PAN/*PAN.db
+        anvi-meta-pan-genome -i "$site"-internal-genomes-table.txt  -g fungi-"$site"-GENOMES.db -p fungi-"$site"-PAN/*PAN.db --gene-caller augustus
 done
 ```
-
-#TODO: pour l'instant les meta-pan-genoomes ne sont pas construits car les gene calls ne sont pas visibles ? car augustus et pas prodigal.
-#TODO: voir si les anvio reglkes le souci, profiles db pas bien faites ? 
-
 
 ####################
 #
@@ -312,3 +308,6 @@ for i in CorynebacteriumAurimucosum CorynebacteriumIhumii CorynebacteriumPseudog
 anvi-script-gen-function-matrix-across-genomes -e external_genomes.txt -G groups.txt --annotation-source Uniref90  --output-file-prefix dry_vs_toenail
 ```
 
+# moist vs toenail
+
+#TODO: a ecrire
